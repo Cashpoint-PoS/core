@@ -1,0 +1,62 @@
+#!/usr/bin/env php
+<?php
+if(php_sapi_name()!="cli")
+  throw new Exception("only CLI usage allowed!");
+
+
+function displayUsage($rc=1) {
+  echo "Usage: ./cli op [params]\n";
+  echo "op gitstatus: show git status for core and plugins\n";
+  echo "op help: show this help\n";
+  exit($rc);
+}
+
+if(!isset($argv[1]))
+  displayUsage();
+
+switch($argv[1]) {
+  case "gitstatus":
+		$paths=glob("./plugins/*",GLOB_ONLYDIR);
+		array_unshift($paths,".");
+		$files=array();
+		foreach($paths as $p) {
+			if(is_file($p."/NOCOMMIT"))
+				continue;
+			$out=array();
+			exec("cd '$p' && git status --porcelain",$out,$rc);
+			foreach($out as $l) {
+				list($status,$fn)=explode(" ",$l,2);
+				$fn=trim($fn);
+				$files[]=array("status"=>$status,"fn"=>"$p/$fn");
+			}
+		}
+		foreach($files as $f)
+			printf("%s - %s\n",$f["status"],$f["fn"]);
+  break;
+  case "gitpush":
+  	$paths=glob("./plugins/*",GLOB_ONLYDIR);
+		array_unshift($paths,".");
+		$files=array();
+		foreach($paths as $p) {
+			if(is_file($p."/NOCOMMIT"))
+				continue;
+			system("cd '$p' && git push",$rc);
+		}
+  break;
+  case "gitpull":
+  	$paths=glob("./plugins/*",GLOB_ONLYDIR);
+		array_unshift($paths,".");
+		$files=array();
+		foreach($paths as $p) {
+			if(is_file($p."/NOCOMMIT"))
+				continue;
+			system("cd '$p' && git pull",$rc);
+		}
+  break;
+  
+  case "help":
+    displayUsage(0);
+  break;
+  default:
+    displayUsage();
+}
