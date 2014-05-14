@@ -1,9 +1,14 @@
 {
-	"name":"core",
-	"version":"git",
-	"deps":[],
-	"tables":[
-		"plugins",
-		"revs"
-	]	
+  "name":"core",
+  "version":"git",
+  "deps":[
+    
+  ],
+  "tables":[
+    "plugins",
+    "revs"
+  ],
+  "tableRevs":[
+    
+  ]
 }
