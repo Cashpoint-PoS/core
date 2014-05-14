@@ -25,7 +25,7 @@ switch($argv[1]) {
 			$out=array();
 			exec("cd '$p' && git status --porcelain",$out,$rc);
 			foreach($out as $l) {
-				list($status,$fn)=explode(" ",$l,2);
+				list($status,$fn)=explode(" ",trim($l),2);
 				$fn=trim($fn);
 				$files[]=array("status"=>$status,"fn"=>"$p/$fn");
 			}
