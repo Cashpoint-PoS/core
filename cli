@@ -53,7 +53,34 @@ switch($argv[1]) {
 			system("cd '$p' && git pull",$rc);
 		}
   break;
-  
+  case "genschema":
+  	$paths=glob("./plugins/*",GLOB_ONLYDIR);
+		array_unshift($paths,".");
+		$files=array();
+		require("config.php");
+		require("DB.php");
+		require("DB_Query.php");
+		foreach($paths as $p) {
+			if(is_file($p."/NOCOMMIT"))
+				continue;
+			if(!is_file($p."/metadata.json"))
+				continue;
+			$c=json_decode(file_get_contents($p."/metadata.json"));
+			if($c===false || $c===null) {
+				echo "Plugin $p has no valid metadata json\n";
+				continue;
+			}
+			$schema="";
+			foreach($c->tables as $t) {
+				$q=new DB_Query("SHOW CREATE TABLE $t");
+				$r=$q->fetch();
+				$schema.=$r["Create Table"]."\n";
+			}
+			$fp=fopen($p."/schema.sql","w");
+			fwrite($fp,$schema);
+			fclose($fp);
+		}
+  break;
   case "help":
     displayUsage(0);
   break;
