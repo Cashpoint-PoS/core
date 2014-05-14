@@ -60,6 +60,7 @@ switch($argv[1]) {
 		require("config.php");
 		require("DB.php");
 		require("DB_Query.php");
+		$tables_count=array();
 		foreach($paths as $p) {
 			if(is_file($p."/NOCOMMIT"))
 				continue;
@@ -75,11 +76,13 @@ switch($argv[1]) {
 				$q=new DB_Query("SHOW CREATE TABLE $t");
 				$r=$q->fetch();
 				$schema.=$r["Create Table"]."\n";
+				$tables_count[$t]=true;
 			}
 			$fp=fopen($p."/schema.sql","w");
 			fwrite($fp,$schema);
 			fclose($fp);
 		}
+		echo "Created schemata files of ".sizeof($tables_count)." tables\n";
   break;
   case "help":
     displayUsage(0);
