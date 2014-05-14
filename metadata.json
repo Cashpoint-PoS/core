@@ -1,0 +1,9 @@
+{
+	"name":"core",
+	"version":"git",
+	"deps":[],
+	"tables":[
+		"plugins",
+		"revs"
+	]	
+}
