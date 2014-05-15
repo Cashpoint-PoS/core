@@ -3,6 +3,32 @@
 if(php_sapi_name()!="cli")
   throw new Exception("only CLI usage allowed!");
 
+//install the tables of a plugin using the latest scheme definition
+//$p: path to the plugin root
+//$insert: insert the plugin into the plugins table
+function plugin_db_install($p,$insert=true) {
+  if(!is_file($p."/metadata.json"))
+    continue;
+  $c=json_decode(file_get_contents($p."/metadata.json"));
+  if($c===false || $c===null)
+    throw new Exception("Plugin $p has no valid metadata json\n");
+  foreach($c->tables as $t) {
+  	$rev=$c->tableRevs->$t;
+  	$schema=file_get_contents("$p/schema/$t.$rev.sql");
+  	if($schema===false)
+  		throw new Exception("invalid schema file for $t/$rev");
+  	$q=new DB_Query($schema);
+  }
+  //insert the schema version into the revs table
+  //note that we only do this after a fully successful install!
+  foreach($c->tables as $t) {
+  	$rev=$c->tableRevs->$t;
+  	$q=new DB_Query("insert into revs set name=?,rev=?",$t,$rev);
+  }
+  if($insert) {
+  	$q=new DB_Query("insert into plugins set name=?,displayname=?,directory=?,active=1",$c->name,$c->desc,$p."/");
+  }
+}
 
 function displayUsage($rc=1) {
   echo "Usage: ./cli op [params]\n";
@@ -154,6 +180,112 @@ switch($argv[1]) {
 			}
 		}
 		echo "Created schemata files of ".sizeof($tables_count)." tables\n";
+  break;
+  case "formatmetadata":
+  	require("lib/functions.php");
+  	$paths=glob("./plugins/*",GLOB_ONLYDIR);
+		array_unshift($paths,".");
+		$files=array();
+		foreach($paths as $p) {
+			if(is_file($p."/NOCOMMIT"))
+				continue;
+			if(!is_file($p."/metadata.json"))
+				continue;
+			$c=json_decode(file_get_contents($p."/metadata.json"));
+			if($c===false || $c===null) {
+				echo "Plugin $p has no valid metadata json\n";
+				continue;
+			}
+      $fp=fopen($p."/metadata.json","w");
+      fwrite($fp,pretty_json(json_encode($c,JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP)));
+      fclose($fp);
+      echo "Plugin $p writing new metadata\n";
+      exec("cd '$p' && git add metadata.json");
+      echo "Plugin $p committing new metadata\n";
+      exec("cd '$p' && git commit -m 'metadata format'");
+		}
+  break;
+  case "setup":
+  	require("lib/functions.php");
+  	printf("Welcome to the CashPoint Core Installer.\n");
+  	printf("In case the supplied database does not exist, it will be created for you.\n");
+  	if(is_file("config2.php")) {
+  		echo "using existing configuration file\n";
+  		require("config2.php");
+  	} else {
+  		echo "creating new configuration file\n";
+  		$f=file_get_contents("config.php.tpl");
+  		preg_match_all("@%%(.*)%%@isU",$f,$hit);
+  		foreach($hit[0] as $idx=>$ph) {
+  			$name=$hit[1][$idx];
+  			switch($name) {
+  				case "DBHOST":
+  					printf("Please enter the MySQL database host: ");
+  					$replacement=trim(fgets(STDIN));
+  				break;
+  				case "DBUSER":
+  					printf("Please enter the MySQL database user: ");
+  					$replacement=trim(fgets(STDIN));
+  				break;
+  				case "DBPASS":
+  					printf("Please enter the MySQL database password: ");
+  					$replacement=getPassword(true);
+  					printf("\n");
+  				break;
+  				case "DBNAME":
+  					printf("Please enter the MySQL database name: ");
+  					$replacement=trim(fgets(STDIN));
+  				break;
+  				case "WEBROOT":
+  					printf("Please enter the full URL of the website directory here: ");
+  					$replacement=trim(fgets(STDIN));
+  				break;
+  				default:
+  					throw new Exception(sprintf("unknown placeholder name '%s'\n",$name));
+  			}
+  			$f=str_replace($ph,$replacement,$f);
+  		}
+  		$fp=fopen("config2.php","w");
+  		fwrite($fp,$f);
+  		fclose($fp);
+  	}
+  	require("DB.php");
+  	require("DB_Query.php");
+  	echo "Attempting to connect to database\n";
+  	$conn=new mysqli($config["db"]["host"],$config["db"]["user"],$config["db"]["pass"]);
+  	if($conn->connect_error)
+  		throw new Exception(sprintf("MySQL connection failed: %s (%d)",$conn->connect_error,$conn->connect_errno));
+  	echo "Connection established, creating database if it doesn't exist\n";
+  	$res=$conn->query("CREATE DATABASE IF NOT EXISTS `".$config["db"]["db"]."`");
+  	if($res===false)
+  		throw new Exception(sprintf("CREATE TABLE failed: %s (%d)",$conn->error,$conn->errno));
+  	$conn->close();
+  	echo "Re-establishing connection\n";
+  	DB::get();
+  	echo "Installing core tables\n";
+  	plugin_db_install(".",false);
+  	echo "Core setup finished. Now, please install the core plugins.\n";
+  break;
+  case "installplugin":
+  	if(!isset($argv[2]))
+  		displayUsage();
+  	require("config2.php");
+  	require("DB.php");
+  	require("DB_Query.php");
+  	$pn=$argv[2];
+  	$md=@file_get_contents("https://raw.githubusercontent.com/Cashpoint-PoS/plugin-$pn/master/metadata.json");
+  	if($md===false)
+  		throw new Exception("Plugin $pn not found");
+  	$md=json_decode($md);
+  	if($md===false||$md===null)
+  		throw new Exception("Plugin $pn has invalid metadata");
+  	printf("Installing plugin %s\n",$pn);
+  	system("git clone https://github.com/Cashpoint-PoS/plugin-$pn.git plugins/$pn",$rc);
+  	if($rc!=0)
+  		throw new Exception("Could not fetch plugin $pn");
+  	printf("Installing plugin DB tables\n");
+  	plugin_db_install("plugins/$pn");
+  	printf("Plugin $pn successfully installed\n");
   break;
   case "help":
     displayUsage(0);
