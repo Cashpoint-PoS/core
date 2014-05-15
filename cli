@@ -108,6 +108,9 @@ switch($argv[1]) {
 				$q=new DB_Query("SHOW CREATE TABLE $t");
 				$r=$q->fetch();
 				$schema_new=$r["Create Table"];
+				//CREATE_TABLE includes AUTO_INCREMENT value which is pointless for us...
+				$schema_new=preg_replace('@ (AUTO_INCREMENT=(.*)) @isU',' AUTO_INCREMENT=1 ',$schema_new);
+				
 				$tables_count[$t]=true;
 				if(!isset($c->tableRevs)) {
 					echo "Plugin $p has tableRevs not set\n";
