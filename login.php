@@ -34,11 +34,10 @@ if($p!=$row["password"]) {
   $u->commit();
 }
 
-switch($target) {
-  case "app":
-    redir("kasse/index.php");
-  case "backend":
-    redir("be_index.php");
-  default:
-    be_error(404,"index.php","Ungültiges Backend");
-}
+list($tmod,$tid)=explode("/",$target);
+if(!isset($_core_targets[$tmod]))
+	throw new Exception("invalid target module");
+if(!isset($_core_targets[$tmod][$tid]))
+	throw new Exception("invalid target id");
+$url=$_core_targets[$tmod][$tid]["base"];
+redir($url);
