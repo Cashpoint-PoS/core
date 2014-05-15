@@ -290,6 +290,54 @@ switch($argv[1]) {
   	plugin_db_install("plugins/$pn");
   	printf("Plugin $pn successfully installed\n");
   break;
+  case "genskelclass":
+  	if(!isset($argv[2]))
+  		displayUsage();
+  	require("config.php");
+  	require("DB.php");
+  	require("DB_Query.php");
+  	$plugin=$argv[2];
+  	printf("Creating new class in %s\n",$plugin);
+  	
+  	printf("Please enter the class name: ");
+  	$replace["CLASSNAME"]=trim(fgets(STDIN));
+  	
+  	printf("Please enter the module name: ");
+  	$replace["MODNAME"]=trim(fgets(STDIN));
+  	
+  	printf("Please enter the sub name: ");
+  	$replace["SUBNAME"]=trim(fgets(STDIN));
+  	
+  	printf("Please enter the underlying DB table: ");
+  	$replace["DBTABLE"]=trim(fgets(STDIN));
+  	
+  	$q=new DB_Query("describe ".$replace["DBTABLE"]);
+  	if($q->numRows<1)
+  		throw new Exception("Error while fetching table description");
+
+  	$replace["ELEMENTS"]="";
+  	$replace["LISTELEMENTS"]="";
+  	$replace["DETAILELEMENTS"]="";
+  	$replace["EDITELEMENTS"]="";
+  	while($r=$q->fetch()) {
+  		if(in_array($r["Field"],array("tenant","id","creator","last_editor","create_time","modify_time")))
+  			continue; //these do not end up in the elements list
+  		$replace["ELEMENTS"].=sprintf('"%s"=>array("title"=>"","mode"=>"string","dbkey"=>"%s"),',$r["Field"],$r["Field"])."\n";
+  		$replace["LISTELEMENTS"].=sprintf('"%s",',$r["Field"])."\n";
+  		$replace["DETAILELEMENTS"].=sprintf('"%s",',$r["Field"])."\n";
+  		$replace["EDITELEMENTS"].=sprintf('"%s",',$r["Field"])."\n";
+  	}
+		
+		$skel=file_get_contents("plugins/class.skel.php");
+		foreach($replace as $k=>$v) {
+			$skel=str_replace("%%$k%%",$v,$skel);
+		}
+		$fp=fopen("plugins/$plugin/class.".$replace["CLASSNAME"].".php","w");
+		fwrite($fp,$skel);
+		fclose($fp);
+		printf("Created class %s in plugin %s\n",$replace["CLASSNAME"],$plugin);
+		printf("Do not forget to add it in backend.php\n");
+  break;
   case "help":
     displayUsage(0);
   break;
