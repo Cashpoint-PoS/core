@@ -63,6 +63,7 @@ switch($argv[1]) {
 		require("config.php");
 		require("DB.php");
 		require("DB_Query.php");
+		require("lib/functions.php");
 		$tables_count=array();
 		foreach($paths as $p) {
 			if(is_file($p."/NOCOMMIT"))
@@ -74,16 +75,83 @@ switch($argv[1]) {
 				echo "Plugin $p has no valid metadata json\n";
 				continue;
 			}
-			$schema="";
+			$metaChanged=false;
+			echo "Plugin $p checking tables\n";
 			foreach($c->tables as $t) {
+				echo "Plugin $p checking table $t\n";
 				$q=new DB_Query("SHOW CREATE TABLE $t");
 				$r=$q->fetch();
-				$schema.=$r["Create Table"]."\n";
+				$schema_new=$r["Create Table"];
 				$tables_count[$t]=true;
+				if(!isset($c->tableRevs)) {
+					echo "Plugin $p has tableRevs not set\n";
+					$c->tableRevs=new stdClass();
+					$metaChanged=true;
+				}
+				if(!isset($c->tableRevs->$t)) {
+					echo "Plugin $p has tableRevs for $t not set\n";
+					$c->tableRevs->$t=0;
+					$fp=fopen($p."/schema/$t.0.sql","w");
+					fwrite($fp,$schema_new);
+					fclose($fp);
+					exec("cd '$p' && git add schema/$t.0.sql && git commit -m 'add schema for table $t'");
+					$metaChanged=true;
+					continue;
+				}
+				$schema_old=file_get_contents($p."/schema/$t.".$c->tableRevs->$t.".sql");
+				if($schema_old!=$schema_new) {
+					echo "Plugin $p detected schema change in $t\n";
+					$q=new DB_Query("drop database if exists r".$c->tableRevs->$t);
+					$q=new DB_Query("drop database if exists r".($c->tableRevs->$t+1));
+					$q=new DB_Query("create database if not exists r".$c->tableRevs->$t);
+					$q=new DB_Query("create database if not exists r".($c->tableRevs->$t+1));
+					mysqli_select_db(DB::get()->getLink(),"r".$c->tableRevs->$t);
+					$q=new DB_Query($schema_old);
+					mysqli_select_db(DB::get()->getLink(),"r".($c->tableRevs->$t+1));
+					$q=new DB_Query($schema_new);
+					exec(sprintf("mysqldbcompare --server1='%s:%s@%s' r%d:r%d --difftype=sql --skip-object-compare --skip-row-count --skip-data-check -a",$config["db"]["user"],$config["db"]["pass"],$config["db"]["host"],$c->tableRevs->$t,($c->tableRevs->$t+1)),$out,$rc);
+					$startprocessing=false;
+					$delta="";
+					foreach($out as $line) {
+						//trim the garbage (mysqldbcompare apparently has some bugs, see http://pastebin.com/HjRiTEk1)
+						if(!$startprocessing) {
+							if(strpos($line,"--changes-for=server1")!==false)
+								$startprocessing=true;
+							else
+								continue;
+						}
+						$line=trim($line);
+						if($line=="" || substr($line,0,1)=="#" || $line=="Databases are consistent given skip options specified.")
+							continue;
+						$delta.=$line."\n";
+					}
+					$q=new DB_Query("drop database r".$c->tableRevs->$t);
+					$q=new DB_Query("drop database r".($c->tableRevs->$t+1));
+					mysqli_select_db(DB::get()->getLink(),$config["db"]["db"]);
+					$delta=str_replace("r".$c->tableRevs->$t.".$t",$t,$delta);
+					$fp=fopen($p."/schema/upgrade.$t.".$c->tableRevs->$t.".".($c->tableRevs->$t+1).".sql","w");
+					fwrite($fp,$delta);
+					fclose($fp);
+					$fp=fopen($p."/schema/$t.".($c->tableRevs->$t+1).".sql","w");
+					fwrite($fp,$schema_new);
+					fclose($fp);
+					exec("cd '$p' && git add schema/$t.".($c->tableRevs->$t+1).".sql");
+					exec("cd '$p' && git add schema/upgrade.$t.".$c->tableRevs->$t.".".($c->tableRevs->$t+1).".sql");
+					exec("cd '$p' && git commit -m 'updated schema for $t'");
+					$c->tableRevs->$t=$c->tableRevs->$t+1;
+					$metaChanged=true;
+					echo "Plugin $p wrote schema update of table $t\n";
+				}
 			}
-			$fp=fopen($p."/schema.sql","w");
-			fwrite($fp,$schema);
-			fclose($fp);
+			if($metaChanged) {
+				$fp=fopen($p."/metadata.json","w");
+				fwrite($fp,pretty_json(json_encode($c,JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP)));
+				fclose($fp);
+				echo "Plugin $p writing new metadata\n";
+				exec("cd '$p' && git add metadata.json");
+				echo "Plugin $p committing new metadata\n";
+				exec("cd '$p' && git commit -m 'metadata update via genschema'");
+			}
 		}
 		echo "Created schemata files of ".sizeof($tables_count)." tables\n";
   break;
