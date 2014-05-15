@@ -7,6 +7,9 @@ if(php_sapi_name()!="cli")
 function displayUsage($rc=1) {
   echo "Usage: ./cli op [params]\n";
   echo "op gitstatus: show git status for core and plugins\n";
+  echo "op gitpush: push core and plugin repos to upstream\n";
+  echo "op gitpull: pull core and plugin repos from upstream\n";
+  echo "op genschema: build table SQL definitions\n";
   echo "op help: show this help\n";
   exit($rc);
 }
@@ -31,7 +34,7 @@ switch($argv[1]) {
 			}
 		}
 		foreach($files as $f)
-			printf("%s - %s\n",$f["status"],$f["fn"]);
+			printf("%s %s\n",str_pad($f["status"],2),$f["fn"]);
   break;
   case "gitpush":
   	$paths=glob("./plugins/*",GLOB_ONLYDIR);
