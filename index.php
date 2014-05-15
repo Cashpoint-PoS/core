@@ -5,6 +5,23 @@ require("lib.php");
 <html>
 <head>
 <title>CashPoint</title>
+<script type="text/javascript" src="shared-js/jquery-2.1.0.js"></script>
+<script type="text/javascript">
+$(document).ready(function() {
+	if(!window.localStorage)
+		return;
+	if(window.localStorage["_cashpoint_index_lasttarget"])
+		$("#target").val(window.localStorage["_cashpoint_index_lasttarget"]);
+	if(window.localStorage["_cashpoint_index_lasttenant"])
+		$("#tenant").val(window.localStorage["_cashpoint_index_lasttenant"]);
+	$("#target").change(function() {
+		window.localStorage["_cashpoint_index_lasttarget"]=$(this).val();
+	});
+	$("#tenant").change(function() {
+		window.localStorage["_cashpoint_index_lasttenant"]=$(this).val();
+	});
+});
+</script>
 <style type="text/css">
 * {
 margin:0;
