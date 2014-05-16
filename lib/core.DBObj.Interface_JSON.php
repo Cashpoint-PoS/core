@@ -10,6 +10,13 @@ class DBObj_Interface_JSON {
       $q=$class::getAll();
     $total=sizeof($q);
     $discarded=0;
+    $current=-1;
+    $start=0;
+    $length=-1;
+    if(isset($_GET["rangeStart"]))
+    	$start=(int)$_GET["rangeStart"];
+    if(isset($_GET["rangeLength"]))
+    	$length=(int)$_GET["rangeLength"];
     if($total>0) {
       foreach($q as $obj) {
         //discard entries which we are not allowed to read
@@ -17,6 +24,11 @@ class DBObj_Interface_JSON {
           $discarded++;
           continue;
         }
+        $current++;
+        if($current<$start)
+        	continue;
+        if($current>=$start+$length)
+        	break;
         $row=array();
         $row["_links"]=array();
         foreach($class::$links as $b=>$data) {
@@ -51,7 +63,12 @@ class DBObj_Interface_JSON {
         $ret[]=$row;
       }
     }
+    $range=array();
+    $range["start"]=$start;
+    $range["length"]=$length;
+    $range["total"]=$total;
     $GLOBALS["ret"]["data"]=$ret;
+    $GLOBALS["ret"]["range"]=$range;
   }
   public static function detailView(DBObj $obj) {
     $class=get_class($obj);
