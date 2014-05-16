@@ -278,11 +278,15 @@ abstract class DBObj {
     global $outformat,$mod,$sub;
     if($id===NULL)
       global $id;
-
-    try {
-      $obj=static::getById($id);
-    } catch(DBObj_NotFoundException $e) {
-      be_error(404,"be_index.php?mod=index","Objekt $mod/$sub/$id nicht gefunden!","Startseite");
+    
+		if($id==0) {
+			$obj=static::fromScratch();
+		} else {
+      try {
+        $obj=static::getById($id);
+      } catch(DBObj_NotFoundException $e) {
+        be_error(404,"be_index.php?mod=index","Objekt $mod/$sub/$id nicht gefunden!","Startseite");
+      }
     }
 
     if(!acl_check("$mod/$sub",$obj->id,"r"))
