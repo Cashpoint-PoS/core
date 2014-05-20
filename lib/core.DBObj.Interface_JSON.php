@@ -17,6 +17,9 @@ class DBObj_Interface_JSON {
     	$start=(int)$_GET["rangeStart"];
     if(isset($_GET["rangeLength"]))
     	$length=(int)$_GET["rangeLength"];
+    $trimExport=false;
+    if(isset($_GET["trimExport"]))
+    	$trimExport=true;
     if($total>0) {
       foreach($q as $obj) {
         //discard entries which we are not allowed to read
@@ -35,7 +38,10 @@ class DBObj_Interface_JSON {
           $row["_links"][$b]=array();
           $g=$obj->getLinkedObjects($b,$data["table"]);
           foreach($g as $r) {
-            $row["_links"][$b][]=$r->obj;
+          	if($trimExport)
+          		$row["_links"][$b][]=$r->obj->id;
+          	else
+	            $row["_links"][$b][]=$r->obj;
           }
         }
         $row["_o2m"]=array();
@@ -43,15 +49,19 @@ class DBObj_Interface_JSON {
           $row["_o2m"][$b]=array("title"=>$data["title"],"elements"=>array());
           $g=$b::getByOwner($obj);
           foreach($g as $r) {
-            $row2=array();
-            $class2=get_class($r);
-            $row2["_class"]=$class2;
-            $row2["_raw"]=$r;
-            $row2["_all"]=$class2::$elements;
-            $row2["_elements"]=array();
-            foreach($class2::$list_elements as $e)
-              $row2["_elements"][$e]=$r->getProperty($e);
-            $row["_o2m"][$b]["elements"][]=$row2;
+          	if($trimExport) {
+          		$row["_o2m"][$b]["elements"][]=$r->id;
+          	} else {
+              $row2=array();
+              $class2=get_class($r);
+              $row2["_class"]=$class2;
+              $row2["_raw"]=$r;
+              $row2["_all"]=$class2::$elements;
+              $row2["_elements"]=array();
+              foreach($class2::$list_elements as $e)
+                $row2["_elements"][$e]=$r->getProperty($e);
+              $row["_o2m"][$b]["elements"][]=$row2;
+            }
           }
         }
         $row["_class"]=$class;
