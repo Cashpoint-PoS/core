@@ -148,4 +148,7 @@ class DBObj_Interface_JSON {
   public static function deleteView(DBObj $obj) {
     
   }
+  public static function logView($log) {
+  	$GLOBALS["ret"]["data"]=$log;
+  }
 }
