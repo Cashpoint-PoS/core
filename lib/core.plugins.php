@@ -44,6 +44,10 @@ function plugins_register_target($plugin,$base,$label) {
 	$_core_targets[$plugin["name"]][]=array("base"=>$plugin["directory"].$base,"label"=>$label);
 }
 
+function plugins_register_jobrunner($class) {
+	global $_core_jobrunners;
+	$_core_jobrunners[]=$class;
+}
 function plugins_load_backend() {
   global $config;
   $plugins=plugins_list();
@@ -56,4 +60,5 @@ function plugins_load_backend() {
 $sb_nav=array();
 $be_handlers=array();
 $_core_targets=array();
+$_core_jobrunners=array();
 plugins_load_backend();
