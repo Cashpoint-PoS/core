@@ -5,7 +5,7 @@ class DBObj_Interface_JSON {
     $mod=$class::$mod;
     $sub=$class::$sub;
     $ret=array();
-    
+
     if($q===null)
       $q=$class::getAll();
     $total=sizeof($q);
@@ -17,9 +17,12 @@ class DBObj_Interface_JSON {
     	$start=(int)$_GET["rangeStart"];
     if(isset($_GET["rangeLength"]))
     	$length=(int)$_GET["rangeLength"];
-    $trimExport=false;
+    $trimExport=false; //only export ids for o2m/link relationships
     if(isset($_GET["trimExport"]))
     	$trimExport=true;
+    $plainExport=false; //omit relationships entirely (faster search)
+    if(isset($_GET["plainExport"]))
+    	$plainExport=true;
     if($total>0) {
       foreach($q as $obj) {
         //discard entries which we are not allowed to read
@@ -30,37 +33,39 @@ class DBObj_Interface_JSON {
         $current++;
         if($current<$start)
         	continue;
-        if($current>=$start+$length)
+        if($length>0 && $current>=$start+$length)
         	break;
         $row=array();
-        $row["_links"]=array();
-        foreach($class::$links as $b=>$data) {
-          $row["_links"][$b]=array();
-          $g=$obj->getLinkedObjects($b,$data["table"]);
-          foreach($g as $r) {
-          	if($trimExport)
-          		$row["_links"][$b][]=$r->obj->id;
-          	else
-	            $row["_links"][$b][]=$r->obj;
+        if(!$plainExport) {
+          $row["_links"]=array();
+          foreach($class::$links as $b=>$data) {
+            $row["_links"][$b]=array();
+            $g=$obj->getLinkedObjects($b,$data["table"]);
+            foreach($g as $r) {
+              if($trimExport)
+                $row["_links"][$b][]=$r->obj->id;
+              else
+                $row["_links"][$b][]=$r->obj;
+            }
           }
-        }
-        $row["_o2m"]=array();
-        foreach($class::$one2many as $b=>$data) {
-          $row["_o2m"][$b]=array("title"=>$data["title"],"elements"=>array());
-          $g=$b::getByOwner($obj);
-          foreach($g as $r) {
-          	if($trimExport) {
-          		$row["_o2m"][$b]["elements"][]=$r->id;
-          	} else {
-              $row2=array();
-              $class2=get_class($r);
-              $row2["_class"]=$class2;
-              $row2["_raw"]=$r;
-              $row2["_all"]=$class2::$elements;
-              $row2["_elements"]=array();
-              foreach($class2::$list_elements as $e)
-                $row2["_elements"][$e]=$r->getProperty($e);
-              $row["_o2m"][$b]["elements"][]=$row2;
+          $row["_o2m"]=array();
+          foreach($class::$one2many as $b=>$data) {
+            $row["_o2m"][$b]=array("title"=>$data["title"],"elements"=>array());
+            $g=$b::getByOwner($obj);
+            foreach($g as $r) {
+              if($trimExport) {
+                $row["_o2m"][$b]["elements"][]=$r->id;
+              } else {
+                $row2=array();
+                $class2=get_class($r);
+                $row2["_class"]=$class2;
+                $row2["_raw"]=$r;
+                $row2["_all"]=$class2::$elements;
+                $row2["_elements"]=array();
+                foreach($class2::$list_elements as $e)
+                  $row2["_elements"][$e]=$r->getProperty($e,false);
+                $row["_o2m"][$b]["elements"][]=$row2;
+              }
             }
           }
         }
@@ -68,8 +73,14 @@ class DBObj_Interface_JSON {
         $row["_raw"]=$obj;
         $row["_all"]=$class::$elements;
         $row["_elements"]=array();
+        $row["_keys"]=array(
+        	"link"=>$class::$link_elements,
+        	"list"=>$class::$list_elements,
+        	"detail"=>$class::$detail_elements,
+        	"edit"=>$class::$edit_elements,
+        );
         foreach($class::$list_elements as $e)
-          $row["_elements"][$e]=$obj->getProperty($e);
+          $row["_elements"][$e]=$obj->getProperty($e,false);
         $ret[]=$row;
       }
     }
@@ -107,13 +118,13 @@ class DBObj_Interface_JSON {
         $row2["_all"]=$class2::$elements;
         $row2["_elements"]=array();
         foreach($class2::$list_elements as $e)
-          $row2["_elements"][$e]=$r->getProperty($e);
+          $row2["_elements"][$e]=$r->getProperty($e,false);
         $ret["_o2m"][$b]["elements"][]=$row2;
       }
     }
     $ret["_elements"]=array();
     foreach($class::$list_elements as $e)
-      $ret["_elements"][$e]=$obj->getProperty($e);
+      $ret["_elements"][$e]=$obj->getProperty($e,false);
     $GLOBALS["ret"]["data"]=$ret;
   }
   public static function editView(DBObj $obj) {
