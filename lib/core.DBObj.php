@@ -362,7 +362,25 @@ abstract class DBObj {
   		throw new Exception("removeLink delete failed");
   }
   
+	public static function processSpecialAction() {
+	  global $outformat,$mod,$sub,$id;
 
+    if(!acl_check("$mod/$sub",0,"r"))
+      be_error(403,"be_index.php?mod=index","Flag r auf $mod/$sub/0 für diesen Benutzer nicht gesetzt!","Startseite");
+		
+		if(!isset($_GET["target"]))
+			be_error(500,"be_index.php?mod=index","Parameter target missing");
+		
+		$target=$_GET["target"];
+		$obj=static::getById($id);
+		
+		$ret=$obj->specialAction($target);
+    switch($outformat) {
+      case "json": DBObj_Interface_JSON::logView($ret); break;
+      default:
+        be_error(500,"be_index.php?mod=index","Format unbekannt");
+    }
+	}
   public static function processAddLink() {
     global $outformat,$mod,$sub,$id;
 
