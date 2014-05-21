@@ -123,7 +123,7 @@ class DBObj_Interface_JSON {
       }
     }
     $ret["_elements"]=array();
-    foreach($class::$list_elements as $e)
+    foreach($class::$detail_elements as $e)
       $ret["_elements"][$e]=$obj->getProperty($e,false);
     $GLOBALS["ret"]["data"]=$ret;
   }
