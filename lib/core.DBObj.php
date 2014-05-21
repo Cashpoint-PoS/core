@@ -314,6 +314,110 @@ abstract class DBObj {
     }
   }
   
+  public static function linkView() {
+    global $outformat,$mod,$sub,$id;
+
+    if(!acl_check("$mod/$sub",0,"r"))
+      be_error(403,"be_index.php?mod=index","Flag r auf $mod/$sub/0 für diesen Benutzer nicht gesetzt!","Startseite");
+		
+		if(!isset($_GET["target"]))
+			be_error(500,"be_index.php?mod=index","Parameter target missing");
+		
+		$target=$_GET["target"];
+		$obj=static::getById($id);
+		if(!isset(static::$links[$target]))
+			be_error(500,"be_index.php?mod=index","Parameter target unknown");
+		
+		$list=$obj->getLinkedObjects($target,static::$links[$target]["table"]);
+		$objList=array();
+		foreach($list as $linkObj)
+			$objList[]=$linkObj->obj;
+		
+    switch($outformat) {
+      case "json": DBObj_Interface_JSON::listView($target,$objList); break;
+      default:
+        be_error(500,"be_index.php?mod=index","Format unbekannt");
+    }
+  }
+  public function addLink($targetObj) {
+  	$targetClass=get_class($targetObj);
+  	$linkdata=static::$links[$targetClass];
+  	$q=new DB_Query("select * from ".$linkdata["table"]." where ".(static::$__table)."_id=? and ".($targetClass::$__table)."_id=?",$this->id,$targetObj->id);
+  	if($q->numRows==1) {
+  		return;
+  	}
+  	$q=new DB_Query("insert into ".$linkdata["table"]." set ".(static::$__table)."_id=?,".($targetClass::$__table)."_id=?",$this->id,$targetObj->id);
+  	if($q->affectedRows!=1)
+  		throw new Exception("addLink insert failed");
+  }
+  public function removeLink($targetObj) {
+  	$targetClass=get_class($targetObj);
+  	$linkdata=static::$links[$targetClass];
+  	$q=new DB_Query("select * from ".$linkdata["table"]." where ".(static::$__table)."_id=? and ".($targetClass::$__table)."_id=?",$this->id,$targetObj->id);
+  	if($q->numRows==0) {
+  		return;
+  	}
+  	$q=new DB_Query("delete from ".$linkdata["table"]." where ".(static::$__table)."_id=? and ".($targetClass::$__table)."_id=?",$this->id,$targetObj->id);
+  	if($q->affectedRows!=1)
+  		throw new Exception("removeLink delete failed");
+  }
+  
+
+  public static function processAddLink() {
+    global $outformat,$mod,$sub,$id;
+
+    if(!acl_check("$mod/$sub",0,"r"))
+      be_error(403,"be_index.php?mod=index","Flag r auf $mod/$sub/0 für diesen Benutzer nicht gesetzt!","Startseite");
+		
+		if(!isset($_GET["target"]))
+			be_error(500,"be_index.php?mod=index","Parameter target missing");
+		if(!isset($_GET["targetId"]))
+			be_error(500,"be_index.php?mod=index","Parameter targetId missing");
+		
+		$target=$_GET["target"];
+		$targetId=$_GET["targetId"];
+		$obj=static::getById($id);
+		$targetObj=$target::getById($targetId);
+		
+		if(!isset(static::$links[$target]))
+			be_error(500,"be_index.php?mod=index","Parameter target unknown");
+		
+		$obj->addLink($targetObj);
+		
+    switch($outformat) {
+      case "json": DBObj_Interface_JSON::detailView($obj); break;
+      default:
+        be_error(500,"be_index.php?mod=index","Format unbekannt");
+    }
+  }
+  public static function processRemoveLink() {
+    global $outformat,$mod,$sub,$id;
+
+    if(!acl_check("$mod/$sub",0,"r"))
+      be_error(403,"be_index.php?mod=index","Flag r auf $mod/$sub/0 für diesen Benutzer nicht gesetzt!","Startseite");
+		
+		if(!isset($_GET["target"]))
+			be_error(500,"be_index.php?mod=index","Parameter target missing");
+		if(!isset($_GET["targetId"]))
+			be_error(500,"be_index.php?mod=index","Parameter targetId missing");
+		
+		$target=$_GET["target"];
+		$targetId=$_GET["targetId"];
+		$obj=static::getById($id);
+		$targetObj=$target::getById($targetId);
+		
+		if(!isset(static::$links[$target]))
+			be_error(500,"be_index.php?mod=index","Parameter target unknown");
+		
+		$obj->removeLink($targetObj);
+		
+    switch($outformat) {
+      case "json": DBObj_Interface_JSON::detailView($obj); break;
+      default:
+        be_error(500,"be_index.php?mod=index","Format unbekannt");
+    }
+  }
+  
   //target is the http form action
   public static function editView($id=NULL, $target="") {
     global $outformat,$mod,$sub;
