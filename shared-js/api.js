@@ -23,6 +23,8 @@ function doAPIRequest(target,params,success,fail,always,progress) {
   var queryUrl=appconfig.apiurl+"?action="+target;
   var reqId=appstate.requestCounter++;
   for(var key in params) {
+  	if(key=="fileUpload" || key=="json_input")
+  		continue;
     logstr+=key+"="+params[key]+",";
     queryUrl+="&"+key+"="+encodeURIComponent(params[key]);
   }
@@ -35,8 +37,39 @@ function doAPIRequest(target,params,success,fail,always,progress) {
       dataType:"json",
       async:false,
     });
-  else
-    var request=$.getJSON(queryUrl);
+  else {
+  	if(params.fileUpload) {
+  		var fileInput=params.fileUpload.files[0];
+  		var formdata=new FormData();
+  		var reader=new FileReader();
+  		reader.readAsDataURL(fileInput);
+  		formdata.append("api_fileupload",fileInput);
+  		if(params.json_input)
+  			formdata.append("json_input",params.json_input);
+  		var request=$.ajax({
+  			type:"POST",
+  			url:queryUrl,
+  			data:formdata,
+  			processData:false,
+  			contentType:false,
+  			dataType:"json"
+  		});
+  	} else {
+  		if(params.json_input) {
+  			var formdata=new FormData();
+  			formdata.append("json_input",params.json_input);
+  			var request=$.ajax({
+  			type:"POST",
+  			url:queryUrl,
+  			data:formdata,
+  			processData:false,
+  			contentType:false,
+  			dataType:"json"
+  			});
+  		} else
+		    var request=$.getJSON(queryUrl);
+	  }
+  }
   request._url=queryUrl;
   APIRequestPool.push(request);
   $("#poollen").html(APIRequestPool.length);
