@@ -24,5 +24,9 @@ require("lib/core.plugins.php");
 
 //only after all the classes were defined!
 //see http://www.macuser.de/forum/f57/problem-_session-__php_incomplete_class-431681/#post4921533
-session_start();
+if(php_sapi_name()=="cli") {
+	$_SESSION=array("user"=>json_decode($config["cli"]["clicreds"],true));
+} else {
+	session_start();
+}
 
