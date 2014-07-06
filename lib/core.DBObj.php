@@ -503,9 +503,9 @@ abstract class DBObj {
         }
       break;
       case "get_json":
-        if(!isset($_GET["json_input"]))
+        if(!isset($_REQUEST["json_input"]))
           be_error(500,"be_index.php?mod=index","Keine Objekte gegeben bzw. kein passendes Objekt übergeben 1");
-        $indata=json_decode($_GET["json_input"]);
+        $indata=json_decode($_REQUEST["json_input"]);
         if($indata===false)
           be_error(500,"be_index.php?mod=index","Keine Objekte gegeben bzw. kein passendes Objekt übergeben 2");
         $inids=$indata->ids;
